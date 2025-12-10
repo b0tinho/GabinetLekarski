@@ -3,8 +3,13 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const { AppDataSource } = require("./data-source");
+
 const authRoutes = require("./routes/authRoutes");
-const { authenticateToken } = require("./middleware/authMiddleware");
+const patientRoutes = require("./routes/patientRoutes");
+const visitRoutes = require("./routes/visitRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const { authenticateToken, requireRole } = require("./middleware/authMiddleware");
+const { createDefaultAdmin } = require("./seedAdmin"); 
 
 const app = express();
 const PORT = 3000;
@@ -15,16 +20,28 @@ app.use(cors({
 }));
 app.use(bodyParser.json());
 
-// Inicjalizacja bazy
-AppDataSource.initialize()
-  .then(() => console.log("Baza danych podłączona!"))
-  .catch((err) => console.error("Błąd bazy danych:", err));
 
-// Trasy publiczne
+
+// Routing
 app.use("/auth", authRoutes);
+app.use("/api", authenticateToken, patientRoutes);
+app.use("/visits", authenticateToken, visitRoutes);
+app.use("/admin", authenticateToken, requireRole("ADMIN"), adminRoutes);
+
+AppDataSource.initialize()
+  .then(async () => {
+    console.log("✅ Baza danych podłączona!");
 
 
+    await createDefaultAdmin(AppDataSource);
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Backend działa na porcie ${PORT}`);
-});
+
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Serwer działa na porcie ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("❌ Błąd połączenia z bazą danych:", err);
+
+    process.exit(1); 
+  });

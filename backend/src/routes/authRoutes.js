@@ -4,99 +4,113 @@ const jwt = require("jsonwebtoken");
 const { AppDataSource } = require("../data-source");
 const User = require("../entities/User");
 const Patient = require("../entities/Patient");
-const Doctor = require("../entities/Doctor");
 const { JWT_SECRET } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 const userRepo = AppDataSource.getRepository(User);
-const patientRepo = AppDataSource.getRepository(Patient);
-const doctorRepo = AppDataSource.getRepository(Doctor);
 
-// REJESTRACJA PACJENTA
+
+// 1. REJESTRACJA PACJENTA (Publiczna)
 router.post("/register/patient", async (req, res) => {
-  try {
-    const { email, password, firstName, lastName, pesel, phoneNumber } = req.body;
+  const { email, password, firstName, lastName, pesel, phoneNumber } = req.body;
 
+
+  if (!email || !password || !firstName || !lastName || !pesel) {
+    return res.status(400).json({ message: "Wypełnij wszystkie wymagane pola." });
+  }
+
+  try {
 
     const existingUser = await userRepo.findOneBy({ email });
-    if (existingUser) return res.status(400).json({ message: "Email zajęty" });
+    if (existingUser) {
+      return res.status(409).json({ message: "Ten email jest już zajęty." });
+    }
+
+
+    const existingPatient = await AppDataSource.getRepository(Patient).findOneBy({ pesel });
+    if (existingPatient) {
+      return res.status(409).json({ message: "Pacjent o podanym numerze PESEL już istnieje." });
+    }
 
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
 
-    const newUser = userRepo.create({
-      email,
-      password: hashedPassword,
-      role: "PATIENT"
+    await AppDataSource.transaction(async (manager) => {
+
+      const newUser = manager.create(User, {
+        email,
+        password: hashedPassword,
+        role: "PATIENT", 
+      });
+      const savedUser = await manager.save(newUser);
+
+      const newPatient = manager.create(Patient, {
+        firstName,
+        lastName,
+        pesel,
+        phoneNumber,
+        user: savedUser,
+      });
+      await manager.save(newPatient);
     });
-    const savedUser = await userRepo.save(newUser);
 
+    res.status(201).json({ message: "Konto pacjenta zostało utworzone. Możesz się zalogować." });
 
-    const newPatient = patientRepo.create({
-      firstName, lastName, pesel, phoneNumber,
-      user: savedUser
-    });
-    await patientRepo.save(newPatient);
-
-    res.status(201).json({ message: "Konto pacjenta utworzone" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Błąd rejestracji:", error);
+    res.status(500).json({ message: "Wystąpił błąd serwera podczas rejestracji." });
   }
 });
 
-// REJESTRACJA LEKARZA (uproszczona, bez weryfikacji uprawnień admina)
-router.post("/register/doctor", async (req, res) => {
-  try {
-    const { email, password, firstName, lastName, specialization } = req.body;
-    
-    const existingUser = await userRepo.findOneBy({ email });
-    if (existingUser) return res.status(400).json({ message: "Email zajęty" });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = userRepo.create({
-      email,
-      password: hashedPassword,
-      role: "DOCTOR"
-    });
-    const savedUser = await userRepo.save(newUser);
-
-    const newDoctor = doctorRepo.create({
-      firstName, lastName, specialization,
-      user: savedUser
-    });
-    await doctorRepo.save(newDoctor);
-
-    res.status(201).json({ message: "Konto lekarza utworzone" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// LOGOWANIE (Wspólne dla wszystkich)
+// 2. LOGOWANIE (Dla Pacjenta, Lekarza i Admina)
 router.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Podaj email i hasło." });
+  }
+
   try {
-    const { email, password } = req.body;
-    
 
     const user = await userRepo.findOneBy({ email });
-    if (!user) return res.status(400).json({ message: "Nieprawidłowe dane logowania" });
+
+    if (!user) {
+      return res.status(401).json({ message: "Nieprawidłowy email lub hasło." });
+    }
 
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Nieprawidłowe dane logowania" });
+    if (!isMatch) {
+      return res.status(401).json({ message: "Nieprawidłowy email lub hasło." });
+    }
 
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role }, 
-      JWT_SECRET, 
-      { expiresIn: "1h" }
+      { 
+        id: user.id, 
+        role: user.role,
+        email: user.email 
+      },
+      JWT_SECRET,
+      { expiresIn: "4h" }
     );
 
-    res.json({ token, role: user.role });
+
+    res.json({
+      message: "Zalogowano pomyślnie",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role
+      }
+    });
+
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Błąd logowania:", error);
+    res.status(500).json({ message: "Wystąpił błąd serwera." });
   }
 });
 

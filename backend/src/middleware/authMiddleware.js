@@ -15,4 +15,22 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-module.exports = { authenticateToken, JWT_SECRET };
+const requireRole = (role) => {
+  return (req, res, next) => {
+
+    if (!req.user) {
+      return res.status(401).json({ message: "Użytkownik niezweryfikowany." });
+    }
+
+
+    if (req.user.role === role) {
+      next(); 
+    } else {
+      res.status(403).json({ 
+        message: `Brak uprawnień. Wymagana rola: ${role}, Twoja rola: ${req.user.role}` 
+      });
+    }
+  };
+};
+
+module.exports = { authenticateToken, requireRole, JWT_SECRET };
