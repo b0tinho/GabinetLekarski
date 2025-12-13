@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import AdminDashboard from "./pages/AdminDashboard";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 
 const Dashboard = () => {
@@ -21,8 +23,7 @@ const Dashboard = () => {
 
 const Navigation = () => {
   const location = useLocation();
-
-  const hideMenu = ["/patient-dashboard", "/doctor-dashboard"];
+  const hideMenu = ["/patient-dashboard", "/doctor-dashboard", "/admin-dashboard", "/login", "/register"];
 
   if (hideMenu.includes(location.pathname)) {
     return null;
@@ -30,14 +31,12 @@ const Navigation = () => {
 
   return (
     <nav style={{
-        backgroundColor: "#1a1a1a",    
-        padding: "20px 30px",          
+        
         marginBottom: "40px",          
         display: "flex",
         justifyContent: "center",
         gap: "20px",                   
-        maxWidth: "500px",             
-        margin: "0 auto 40px auto"     
+        width: "100%"     
       }}>
         <Link 
           to="/login" 
@@ -91,20 +90,52 @@ const Navigation = () => {
   );
 };
 
+const LayoutWrapper = ({ children }) => {
+  const location = useLocation();
+  
+  
+  const centeredPages = ["/", "/login", "/register"];
+  const isCentered = centeredPages.includes(location.pathname);
+
+  if (isCentered) {
+    return (
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center", 
+        alignItems: "center",    
+        minHeight: "100vh",       
+        width: "100vw",
+        backgroundColor: "#1a1a1a", 
+        color: "white"
+      }}>
+        {children}
+      </div>
+    );
+  }
+
+ 
+  return <>{children}</>;
+};
+
 function App() {
   return (
     <Router>
-      
-      <Navigation />
-
-      <Routes>
-        <Route path="/" element={<div style={{textAlign: "center", color: "white", marginTop: "50px"}}>Wybierz opcję z menu</div>} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+      <LayoutWrapper>
         
-        <Route path="/patient-dashboard" element={<Dashboard />} />
-        <Route path="/doctor-dashboard" element={<Dashboard />} />
-      </Routes>
+        <Navigation />
+
+        <Routes>
+          <Route path="/" element={<div style={{ textAlign: "center", color: "#aaa" }}><h3>Wybierz opcję z menu</h3></div>} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          
+          <Route path="/patient-dashboard" element={<Dashboard />} />
+          <Route path="/doctor-dashboard" element={<Dashboard />} />
+          <Route path="/admin-dashboard" element={<ProtectedRoute allowedRoles={["ADMIN"]}><AdminDashboard /></ProtectedRoute>} />
+        </Routes>
+
+      </LayoutWrapper>
     </Router>
   );
 }

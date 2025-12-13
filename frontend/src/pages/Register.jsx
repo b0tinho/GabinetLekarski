@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom"; 
+import "../styles/Auth.css";
 
 const Register = () => {
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState({
     email: "",
     password: "",
     firstName: "",
@@ -20,6 +21,7 @@ const Register = () => {
       [e.target.name]: e.target.value,
     });
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -29,9 +31,9 @@ const Register = () => {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            },
-         body: JSON.stringify(formData),
-        });
+        },
+        body: JSON.stringify(formData),
+      });
 
       const data = await response.json();
 
@@ -39,27 +41,80 @@ const Register = () => {
         throw new Error(data.message || "Błąd rejestracji");
       }
 
-      alert("Rejestracja udana");
+      alert("Rejestracja udana! Możesz się teraz zalogować.");
       navigate("/login"); 
     } catch (err) {
       setError(err.message);
     }
   };
+
   return (
-    <div style={{ maxWidth: "400px", margin: "auto", padding: "20px" }}>
-      <h2>Rejestracja Pacjenta</h2>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        <input name="firstName" placeholder="Imię" onChange={handleChange} required />
-        <input name="lastName" placeholder="Nazwisko" onChange={handleChange} required />
-        <input name="email" type="email" placeholder="Email" onChange={handleChange} required />
-        <input name="password" type="password" placeholder="Hasło" onChange={handleChange} required />
-        <input name="pesel" placeholder="PESEL" onChange={handleChange} required />
-        <input name="phoneNumber" placeholder="Numer telefonu" onChange={handleChange} required />
+    <div className="auth-container">
+      <div className="auth-box">
+        <h2>Rejestracja Pacjenta</h2>
         
-        <button type="submit">Zarejestruj się</button>
-      </form>
+        {error && <div className="error-msg">{error}</div>}
+        
+        <form onSubmit={handleSubmit}>
+          <div className="auth-input-group">
+            <input 
+              name="firstName" 
+              placeholder="Imię" 
+              onChange={handleChange} 
+              required 
+            />
+          </div>
+          <div className="auth-input-group">
+            <input 
+              name="lastName" 
+              placeholder="Nazwisko" 
+              onChange={handleChange} 
+              required 
+            />
+          </div>
+          <div className="auth-input-group">
+            <input 
+              name="email" 
+              type="email" 
+              placeholder="Email" 
+              onChange={handleChange} 
+              required 
+            />
+          </div>
+          <div className="auth-input-group">
+            <input 
+              name="password" 
+              type="password" 
+              placeholder="Hasło" 
+              onChange={handleChange} 
+              required 
+            />
+          </div>
+          <div className="auth-input-group">
+            <input 
+              name="pesel" 
+              placeholder="PESEL" 
+              onChange={handleChange} 
+              required 
+            />
+          </div>
+          <div className="auth-input-group">
+            <input 
+              name="phoneNumber" 
+              placeholder="Numer telefonu" 
+              onChange={handleChange} 
+              required 
+            />
+          </div>
+          <button type="submit" className="auth-btn">Zarejestruj się</button>
+        </form>
+
+        <div className="auth-footer">
+          Masz już konto? 
+          <Link to="/login" className="auth-link">Zaloguj się</Link>
+        </div>
+
+      </div>
     </div>
   );
 };
