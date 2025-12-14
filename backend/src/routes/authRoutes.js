@@ -43,7 +43,7 @@ router.post("/register/patient", async (req, res) => {
         password: hashedPassword,
         role: "PATIENT", 
       });
-      const savedUser = await manager.save(newUser);
+      const savedUser = await manager.save(User, newUser);
 
       const newPatient = manager.create(Patient, {
         firstName,
@@ -52,7 +52,7 @@ router.post("/register/patient", async (req, res) => {
         phoneNumber,
         user: savedUser,
       });
-      await manager.save(newPatient);
+      await manager.save(Patient, newPatient);
     });
 
     res.status(201).json({ message: "Konto pacjenta zostało utworzone. Możesz się zalogować." });

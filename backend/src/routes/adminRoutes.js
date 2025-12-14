@@ -4,12 +4,14 @@ const { AppDataSource } = require("../data-source");
 const User = require("../entities/User");
 const Doctor = require("../entities/Doctor");
 const { requireRole } = require("../middleware/authMiddleware");
+const Patient = require("../entities/Patient");
 
 const router = express.Router();
 
 
 const userRepo = AppDataSource.getRepository(User);
 const doctorRepo = AppDataSource.getRepository(Doctor);
+const patientRepo = AppDataSource.getRepository(Patient);
 
 // 1. Dodawanie Lekarza
 router.post("/doctors", requireRole("ADMIN"), async (req, res) => {
@@ -80,6 +82,46 @@ router.delete("/doctors/:id", requireRole("ADMIN"), async (req, res) => {
         res.json({ message: "Lekarz i jego konto usunięte" });
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+});
+
+// 3. Lista wszystkich pacjentów
+router.get("/patients", requireRole("ADMIN"), async (req, res) => {
+    try {
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const [patients, total] = await patientRepo.findAndCount({
+            take: limit,
+            skip: skip,
+            relations: ["user"], 
+            order: { lastName: "ASC" }
+        });
+
+        const safePatients = patients.map(p => ({
+            id: p.id,
+            firstName: p.firstName,
+            lastName: p.lastName,
+            pesel: p.pesel,
+            phoneNumber: p.phoneNumber,
+            email: p.user ? p.user.email : null,
+        }));
+
+        res.json({
+            data: safePatients,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+
+    } catch (error) {
+        console.error("Błąd pobierania pacjentów:", error);
+        res.status(500).json({ message: "Błąd serwera." });
     }
 });
 
