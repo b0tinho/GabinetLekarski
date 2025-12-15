@@ -16,10 +16,7 @@ const Register = () => {
   const [error, setError] = useState(null);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({...formData, [e.target.name]: e.target.value,});
   };
 
   const handleSubmit = async (e) => {

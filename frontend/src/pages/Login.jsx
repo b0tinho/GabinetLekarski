@@ -47,7 +47,8 @@ const Login = () => {
       }
       else if (userRole === "ADMIN") {
         navigate("/admin-dashboard");
-      } else {
+      } 
+      else {
         console.warn("Nieznana rola:", userRole);
         navigate("/");
       }

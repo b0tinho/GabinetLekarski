@@ -121,9 +121,13 @@ const AdminDashboard = () => {
   const fetchPatients = async () => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) { navigate("/login"); return; }
+      if (!token) 
+        { 
+          navigate("/login"); 
+          return; 
+        }
 
-      const response = await fetch("http://localhost:3000/api/patients", {
+      const response = await fetch("http://localhost:3000/admin/patients", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -133,10 +137,14 @@ const AdminDashboard = () => {
 
       if (!response.ok) throw new Error(`Błąd: ${response.status}`);
 
-      const data = await response.json();
-      setPatients(data);
+      const result = await response.json();
+      console.log("Pobrani pacjenci:", result);
+      setPatients(result.data);
 
     } 
+    catch (error) {
+    console.error("Nie udało się pobrać pacjentów:", error);
+    }
     finally {
       
     }
@@ -173,30 +181,43 @@ const AdminDashboard = () => {
         );
 
       case "patients":
-        return (
-          <div className="table-container">
-            <h2>Lista Pacjentów</h2>
-            {error && <p style={{ color: "red", background: "#3d1a1a", padding: "10px" }}>{error}</p>}
-            {patients.length === 0 && !error ? (
-              <p>Trwa ładowanie lub brak pacjentów...</p>
-            ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>ID</th><th>Imię</th><th>Nazwisko</th><th>PESEL</th><th>Telefon</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {patients.map((p) => (
-                    <tr key={p.id}>
-                      <td>{p.id}</td><td>{p.firstName}</td><td>{p.lastName}</td><td>{p.pesel}</td><td>{p.phoneNumber}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        );
+    return (
+      //tabela pacjentów
+      <div className="table-container">
+        <h2>Lista Pacjentów</h2>
+        
+        {error && (<p style={{ color: "red", background: "#3d1a1a", padding: "10px" }}>{error} </p>)}
+ 
+        {(!patients || !Array.isArray(patients) || patients.length === 0) && !error ? (
+          <p>Brak pacjentów lub trwa ładowanie...</p>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Imię</th>
+                <th>Nazwisko</th>
+                <th>PESEL</th>
+                <th>Telefon</th>
+                <th>Email</th> 
+              </tr>
+            </thead>
+            <tbody>
+              {patients.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.id}</td>
+                  <td>{p.firstName}</td>
+                  <td>{p.lastName}</td>
+                  <td>{p.pesel || "-"}</td>
+                  <td>{p.phoneNumber || "-"}</td>
+                  <td>{p.email || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    );
 
       case "doctors":
         if (isAddingDoctor) {
