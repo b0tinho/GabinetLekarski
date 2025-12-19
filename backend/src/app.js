@@ -10,6 +10,7 @@ const visitRoutes = require("./routes/visitRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const { authenticateToken, requireRole } = require("./middleware/authMiddleware");
 const { createDefaultAdmin } = require("./seedAdmin"); 
+const { seedTestData } = require("./seedTestData");
 
 const app = express();
 const PORT = 3000;
@@ -34,6 +35,7 @@ AppDataSource.initialize()
 
 
     await createDefaultAdmin(AppDataSource);
+    await seedTestData(AppDataSource);
 
 
     app.listen(PORT, '0.0.0.0', () => {

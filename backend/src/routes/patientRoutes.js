@@ -4,20 +4,39 @@ const Doctor = require("../entities/Doctor");
 const Visit = require("../entities/Visit");
 const Patient = require("../entities/Patient");
 const { authenticateToken } = require("../middleware/authMiddleware");
+const { ILike } = require("typeorm");
 
 const router = express.Router();
 
+const doctorRepo = AppDataSource.getRepository(Doctor);
+
 // 1. Lista Lekarzy (Publiczna - każdy może zobaczyć)
 router.get("/doctors", async (req, res) => {
-    const doctors = await AppDataSource.getRepository(Doctor).find();
-    
-    const result = doctors.map(d => ({
-        id: d.id,
-        firstName: d.firstName,
-        lastName: d.lastName,
-        specialization: d.specialization
-    }));
-    res.json(result);
+    try {
+        const { specialization } = req.query;
+        const whereClause = {};
+
+        if(specialization) {
+            whereClause.specialization = ILike('%${specialization}%');
+        }
+
+        const doctors = await doctorRepo.find({
+            where: whereClause,
+            order: { lastName: "ASC" }
+        });
+        
+        const safeDoctors = doctors.map(d => ({
+            id: d.id,
+            firstName: d.firstName,
+            lastName: d.lastName,
+            specialization: d.specialization
+        }));
+
+        res.json(safeDoctors);
+    }   catch(error) {
+        console.error("Blad pobierania lekarzy:", error);
+        res.status(500).json({ message: "Blad serwera podczas pobierania listy lekarzy." });
+    }
 });
 
 // 2. Umówienie wizyty (Tylko zalogowany pacjent)
