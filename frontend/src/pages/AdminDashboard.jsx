@@ -11,6 +11,7 @@ const AdminDashboard = () => {
   const [doctors, setDoctors] = useState([]);
   const [error, setError] = useState(null);
   const [isAddingDoctor, setIsAddingDoctor] = useState(false);
+  const [visits, setVisits] = useState([]);
 
   //WYLOGOWANIE
   const handleLogout = () => {
@@ -60,7 +61,9 @@ const AdminDashboard = () => {
       alert(`Wystąpił błąd: ${err.message}`);
     }
   };
-
+  //USUWANIE PACJENTA
+ // const handleDeletePatient = asycnc (patientId) => {};
+   
   //USUWANIE LEKARZA  
   const handleDeleteDoctor = async (doctorId) => {
     if (!window.confirm("Czy na pewno chcesz usunąć tego lekarza i jego konto?")) {
@@ -87,6 +90,29 @@ const AdminDashboard = () => {
     } catch (err) {
       console.error("Błąd usuwania lekarza:", err);
       alert("Wystąpił błąd podczas usuwania.");
+    }
+  };
+  //USUWANIE WIZYTY
+  const handleDeleteVisit = async (visitId) => {
+    if (!window.confirm("Czy na pewno chcesz usunąć tę wizytę?")) {
+      return;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://localhost:3000/visits/:id`, {
+        method: "DELETE",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+         throw new Error("Nie udało się usunąć wizyty");
+      }
+      setVisits(visits.filter((v) => v.id !== visitId));
+      alert("Wizyta została usunięta.");
+    } catch (err) {
+      console.error("Błąd usuwania wizyty:", err);  
     }
   };
 
@@ -149,6 +175,30 @@ const AdminDashboard = () => {
       
     }
   };
+  //POBIERANEI LISTY WIZYT
+  const fetchVisits = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+      const response = await fetch("http://localhost:3000/visits", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) throw new Error(`Błąd: ${response.status}`);
+
+      const result = await response.json();
+      console.log("Pobrane wizyty:", result);
+      setVisits(result.data);
+    } catch (error) {
+      console.error("Nie udało się pobrać wizyt:", error);
+    }
+  };
 
  
   useEffect(() => {
@@ -157,11 +207,57 @@ const AdminDashboard = () => {
     } else if (activeTab === "doctors") {
       fetchDoctors();
     }
+    else if (activeTab === "visits") {
+      fetchVisits();
+    }
   }, [activeTab]);
 
   //WIDOKI
   const renderContent = () => {
     switch (activeTab) {
+      //WIZYTY
+      case "visits": 
+        return (
+          <div className="table-container">
+            <h2>Wszystkie Wizyty</h2>
+            {visits.length === 0 ? (
+              <p>Brak wizyt w systemie.</p>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Pacjent</th>
+                    <th>Lekarz</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visits.map((visit) => (
+                    <tr key={visit.id}>
+                      <td>{new Date(visit.date).toLocaleString()}</td>
+                      <td>
+                        {visit.patient 
+                          ? `${visit.patient.firstName} ${visit.patient.lastName}` 
+                          : "Brak danych"}
+                      </td>
+                      <td>
+                        {visit.doctor 
+                          ? `${visit.doctor.firstName} ${visit.doctor.lastName}` 
+                          : "Brak danych"}
+                      </td>
+                      <td>
+                        <span className={`status-badge status-${visit.status ? visit.status.toLowerCase() : 'scheduled'}`}>
+                            {visit.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
       case "dashboard":
         return (
           <div className="stats-grid">
@@ -174,8 +270,8 @@ const AdminDashboard = () => {
               <p className="stat-number">{doctors.length > 0 ? doctors.length : "-"}</p>
             </div>
             <div className="stat-card">
-              <h3>Dzisiejsze wizyty</h3>
-              <p className="stat-number">5</p>
+              <h3>Wszystkie wizyty</h3>
+              <p className="stat-number">{visits.length > 0 ? visits.length : "-"}</p>
             </div>
           </div>
         );
@@ -308,7 +404,7 @@ const AdminDashboard = () => {
             <li><button className={activeTab === "dashboard" ? "nav-btn active" : "nav-btn"} onClick={() => setActiveTab("dashboard")}>Pulpit</button></li>
             <li><button className={activeTab === "patients" ? "nav-btn active" : "nav-btn"} onClick={() => setActiveTab("patients")}>Pacjenci</button></li>
             <li><button className={activeTab === "doctors" ? "nav-btn active" : "nav-btn"} onClick={() => setActiveTab("doctors")}>Lekarze</button></li>
-            
+            <li><button className={activeTab === "visits" ? "nav-btn active" : "nav-btn"} onClick={() => setActiveTab("visits")}>Wizyty</button></li>
           </ul>
         </nav>
         <button onClick={handleLogout} className="logout-btn">Wyloguj się</button>
