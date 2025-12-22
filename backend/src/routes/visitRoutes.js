@@ -10,6 +10,7 @@ const visitRepo = AppDataSource.getRepository(Visit);
 // 1. Pobierz Wizyty (Inteligentne filtrowanie)
 router.get("/", async (req, res) => {
     try {
+        const user = req.user;
         const { role, id: userId } = req.user;
         const { page = 1, limit = 10, status } = req.query;
 
@@ -31,18 +32,18 @@ router.get("/", async (req, res) => {
         }
         
 
-        const visits = await visitRepo.find({
+        const [visits, total] = await visitRepo.findAndCount({
             where: whereClause,
-            relations: ["patient", "doctor"], 
-            order: { date: "ASC" },
-            take: limit,
-            skip: skip
+            relations: ["patient", "doctor"],
+            order: { date: "DESC" },
+            take: parseInt(limit),
+            skip: parseInt(skip)
         });
 
         res.json({
             data: visits,
             meta: {
-                total,
+                total: total,
                 page: parseInt(page),
                 limit: parseInt(limit),
                 totalPages: Math.ceil(total / limit)

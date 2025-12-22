@@ -39,41 +39,65 @@ router.get("/doctors", async (req, res) => {
     }
 });
 
-// 2. Umówienie wizyty (Tylko zalogowany pacjent)
+// 2. UMAWIANIE WIZYTY (Z pełną walidacją kolizji)
 router.post("/book", authenticateToken, async (req, res) => {
     const { doctorId, date } = req.body; 
 
-    
+    if (!doctorId || !date) {
+        return res.status(400).json({ message: "Brak lekarza lub daty." });
+    }
+
     try {
         const visitRepo = AppDataSource.getRepository(Visit);
 
         
-        const existingVisit = await visitRepo.createQueryBuilder("visit")
-            .where("visit.doctorId = :doctorId", { doctorId })
+        const patient = await AppDataSource.getRepository(Patient).findOneBy({ user: { id: req.user.id } });
+        if (!patient) return res.status(403).json({ message: "Nie znaleziono profilu pacjenta." });
+
+       
+        const patientConflict = await visitRepo.createQueryBuilder("visit")
+            .where("visit.patientId = :patientId", { patientId: patient.id })
             .andWhere("visit.date = :date", { date })
-            .andWhere("visit.status != 'CANCELLED'")
+            .andWhere("visit.status != :status", { status: "CANCELLED" })
             .getOne();
 
-        if (existingVisit) {
-            return res.status(409).json({ message: "Ten termin jest już zajęty." });
+        if (patientConflict) {
+            return res.status(409).json({ 
+                message: "Masz już umówioną wizytę w tym terminie u innego lekarza!" 
+            });
         }
 
+        
+        const doctorConflict = await visitRepo.createQueryBuilder("visit")
+            .where("visit.doctorId = :doctorId", { doctorId })
+            .andWhere("visit.date = :date", { date })
+            .andWhere("visit.status != :status", { status: "CANCELLED" })
+            .getOne();
 
-        const patient = await AppDataSource.getRepository(Patient).findOneBy({ user: { id: req.user.id } });
-        if (!patient) return res.status(403).json({ message: "Błąd profilu pacjenta" });
+        if (doctorConflict) {
+            return res.status(409).json({ 
+                message: "Ten lekarz ma już zajęty ten termin." 
+            });
+        }
+
+       
+        const doctor = await AppDataSource.getRepository(Doctor).findOneBy({ id: doctorId });
+        if (!doctor) return res.status(404).json({ message: "Nie znaleziono lekarza." });
 
         const newVisit = visitRepo.create({
             date: date,
-            doctor: { id: doctorId }, 
+            status: "PLANNED",
             patient: patient,
-            status: "PLANNED"
+            doctor: doctor
         });
 
         await visitRepo.save(newVisit);
-        res.status(201).json({ message: "Wizyta zarezerwowana!" });
+        
+        res.status(201).json({ message: "Wizyta została pomyślnie zarezerwowana." });
 
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error("Błąd rezerwacji:", error);
+        res.status(500).json({ message: "Błąd serwera." });
     }
 });
 
