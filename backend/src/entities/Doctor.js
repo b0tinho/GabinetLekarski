@@ -8,6 +8,7 @@ module.exports = new EntitySchema({
     specialization: { type: "varchar" }
   },
   relations: {
-    user: { target: "User", type: "one-to-one", joinColumn: { name: "userId" }, cascade: true }
-  }
+    user: { target: "User", type: "one-to-one", joinColumn: { name: "userId" }, cascade: true },
+    visits: { target: "Visit", type: "one-to-many", inverseSide: "doctor" }
+  },
 });

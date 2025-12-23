@@ -8,6 +8,7 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
       POSTGRES_DB: gabinet_db
+      TZ: Europe/Warsaw
     ports:
       - "5432:5432"
     volumes:
@@ -44,6 +45,7 @@ services:
       DB_NAME: gabinet_db
       JWT_SECRET: super_tajne_haslo_dev
       CORS_ORIGIN: http://localhost:5173
+      TZ: Europe/Warsaw
     depends_on:
       - postgres
     networks:
