@@ -20,6 +20,12 @@ const PatientDashboard = () => {
         localStorage.removeItem('role'); 
         navigate('/login');
     };
+
+    const getMinDateTimeLocal = () => {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        return now.toISOString().slice(0,16);
+    };
 //LISTA WIZYT PACJENTA
     const fetchAppointments = async () => {
         try {
@@ -60,6 +66,12 @@ const PatientDashboard = () => {
 //REZERWACJA WIZYTY
     const handleAddVisit = async (e) => {
         e.preventDefault();
+        const selectedDate = new Date(formData.date);
+        const now = new Date();
+        if (selectedDate <= now) {
+            alert("Nie można umówić wizyty w podanym terminie. Wybierz inny termin");
+            return;
+        }
         try {
             const token = localStorage.getItem('token');
             const response = await fetch('http://localhost:3000/api/book', {
@@ -83,6 +95,32 @@ const PatientDashboard = () => {
             
         } catch (err) {
             console.error("Błąd dodawania wizyty:", err);
+            alert(`Wystąpił błąd: ${err.message}`);
+        }
+    }
+//ODWOŁANIE WIZYTY (ZMIANA STATUSU NA CANCELLED)
+    const handleCancelVisit = async (visitId) => {
+        if(!window.confirm('Czy na pewno chcesz odwołać tę wizytę?')){
+            return;
+        }
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:3000/visits/${visitId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: 'CANCELLED' })
+            }); 
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.message || 'Nie udało się odwołać wizyty');
+            }
+            alert("Wizyta odwołana pomyślnie!");
+            await fetchAppointments(); 
+        } catch (err) {
+            console.error("Błąd usuwania wizyty:", err);
             alert(`Wystąpił błąd: ${err.message}`);
         }
     }
@@ -133,6 +171,7 @@ const PatientDashboard = () => {
                                         <th>Data</th>
                                         <th>Lekarz</th>
                                         <th>Status</th>
+                                        <th>Akcje</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -141,6 +180,17 @@ const PatientDashboard = () => {
                                             <td>{new Date(visit.date).toLocaleString()}</td>
                                             <td>{visit.doctor ? `${visit.doctor.firstName} ${visit.doctor.lastName}` : "Brak danych"}</td>
                                             <td>{visit.status || "Zaplanowana"}</td>
+                                            <td>
+                                                  {visit.status === 'PLANNED' && (
+                                                   <button 
+                                                    className="action-btn btn-cancel"
+                                                    onClick={() => handleCancelVisit(visit.id)}
+                                                    title="Odwołaj wizytę"
+                                                    >
+                                                     Odwołaj
+                                                    </button>
+                                                 )}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -176,6 +226,7 @@ const PatientDashboard = () => {
                                 value={formData.date}
                                 onChange={(e) => setFormData({...formData, date: e.target.value})}
                                 required
+                                min={getMinDateTimeLocal()}
                                 style={{padding: '10px'}}
                             />
 
