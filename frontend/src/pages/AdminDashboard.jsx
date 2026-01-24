@@ -29,7 +29,7 @@ const handlePageChange = (newPage) => {
               fetchPatients(newPage);
           } else if (activeTab === "doctors") {
               
-              setPage(newPage);
+              fetchDoctors(newPage);
           } else if (activeTab === "visits") {
               fetchVisits(newPage); 
           }
