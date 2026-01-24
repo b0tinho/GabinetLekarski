@@ -12,6 +12,7 @@ const AdminDashboard = () => {
   const [error, setError] = useState(null);
   const [isAddingDoctor, setIsAddingDoctor] = useState(false);
   const [visits, setVisits] = useState([]);
+  const [editingVisit, setEditingVisit] = useState(null);
 
   //WYLOGOWANIE
   const handleLogout = () => {
@@ -19,6 +20,19 @@ const AdminDashboard = () => {
     localStorage.removeItem("role");
     navigate("/login");
   };
+  //FORMATOWANIE DATY DLA INPUTA
+  const formatForInput = (isoDateString) => {
+    if (!isoDateString) return "";
+    const date = new Date(isoDateString);
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    return date.toISOString().slice(0, 16);
+  };
+  //MINIMALNA DATA DLA INPUTA
+  const getMinDateTimeLocal = () => {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        return now.toISOString().slice(0,16);
+    };
 
   //DODAWANIE LEKARZA 
   const handleAddDoctorSubmit = async (e) => {
@@ -92,6 +106,36 @@ const AdminDashboard = () => {
       alert("Wystąpił błąd podczas usuwania.");
     }
   };
+  //EDYCJA WIZYTY 
+  const handleUpdateVisit = async(e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem("token");
+      const bodyData = {
+              date: editingVisit.date,
+              status: editingVisit.status,
+              description: editingVisit.description,
+              doctorId: editingVisit.doctorId
+          };
+      const response = await fetch(`http://localhost:3000/visits/${editingVisit.id}`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(bodyData)
+      });
+      if (!response.ok) {
+         throw new Error("Nie udało się zaktualizować wizyty");
+      }
+      alert("Wizyta została zaktualizowana.");
+      setEditingVisit(null);
+      fetchVisits();
+    } catch (err) {
+      console.error("Błąd edytowania wizyty:", err);  
+    }
+  }
+
   //USUWANIE WIZYTY
   const handleDeleteVisit = async (visitId) => {
     if (!window.confirm("Czy na pewno chcesz usunąć tę wizytę?")) {
@@ -99,7 +143,7 @@ const AdminDashboard = () => {
     }
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:3000/visits/:id`, {
+      const response = await fetch(`http://localhost:3000/visits/${visitId}`, {
         method: "DELETE",
         headers: {
             "Content-Type": "application/json",
@@ -217,6 +261,63 @@ const AdminDashboard = () => {
     switch (activeTab) {
       //WIZYTY
       case "visits": 
+      if (editingVisit) {
+            return (
+                <div className="table-container" style={{ maxWidth: "600px" }}>
+                    <h2>Edytuj Wizytę (ID: {editingVisit.id})</h2>
+                    <form onSubmit={handleUpdateVisit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                        
+                        <label>Data i czas:</label>
+                        <input 
+                            type="datetime-local"
+                            value={editingVisit.date}
+                            onChange={(e) => setEditingVisit({...editingVisit, date: e.target.value})}
+                            required
+                            min={getMinDateTimeLocal()}
+                            style={{padding: "10px"}}
+                        />
+
+                        <label>Lekarz:</label>
+                        <select 
+                            value={editingVisit.doctorId} 
+                            onChange={(e) => setEditingVisit({...editingVisit, doctorId: e.target.value})}
+                            style={{padding: "10px"}}
+                            required
+                        >
+                            <option value="">-- Wybierz lekarza --</option>
+                            {doctors.map(doc => (
+                                <option key={doc.id} value={doc.id}>{doc.firstName} {doc.lastName} ({doc.specialization})</option>
+                            ))}
+                        </select>
+
+                        <label>Status:</label>
+                        <select 
+                            value={editingVisit.status}
+                            onChange={(e) => setEditingVisit({...editingVisit, status: e.target.value})}
+                            style={{padding: "10px"}}
+                        >
+                            <option value="PLANNED">Planowana (PLANNED)</option>
+                            <option value="COMPLETED">Zakończona (COMPLETED)</option>
+                            <option value="CANCELLED">Odwołana (CANCELLED)</option>
+                        </select>
+
+                        <label>Opis / Notatki:</label>
+                        <textarea 
+                            value={editingVisit.description}
+                            onChange={(e) => setEditingVisit({...editingVisit, description: e.target.value})}
+                            rows="4"
+                            placeholder="Notatki administratora..."
+                            style={{padding: "10px", resize: "vertical"}}
+                        />
+
+                        <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                            <button type="submit" className="nav-btn" style={{ background: "#2ea043", flex: 1 }}>Zapisz Zmiany</button>
+                            <button type="button" className="nav-btn" style={{ background: "#555", flex: 1 }} onClick={() => setEditingVisit(null)}>Anuluj</button>
+                        </div>
+                    </form>
+                </div>
+            );
+        }
         return (
           <div className="table-container">
             <h2>Wszystkie Wizyty</h2>
@@ -247,9 +348,35 @@ const AdminDashboard = () => {
                           : "Brak danych"}
                       </td>
                       <td>
-                        <span className={`status-badge status-${visit.status ? visit.status.toLowerCase() : 'scheduled'}`}>
+                        <span className={`status-badge status-${visit.status ? visit.status.toLowerCase() : 'planned'}`}>
                             {visit.status}
                         </span>
+                      </td>
+                      <td>
+                        <button
+                            className="action-btn"
+                            style={{ backgroundColor: "#646cff", marginRight: "5px" }}
+                            onClick={() => {
+                                if(doctors.length === 0) fetchDoctors();
+
+                                setEditingVisit({
+                                    id: visit.id,
+                                    date: formatForInput(visit.date),
+                                    status: visit.status || 'SCHEDULED',
+                                    description: visit.description || '',
+                                    doctorId: visit.doctor ? visit.doctor.id : ''
+                                });
+                            }}
+                        >
+                            Edytuj
+                        </button>
+                        <button 
+                            className="action-btn"
+                            style={{ backgroundColor: "#da3633" }}
+                            onClick={() => handleDeleteVisit(visit.id)}
+                        >
+                            Usuń
+                        </button>
                       </td>
                     </tr>
                   ))}
