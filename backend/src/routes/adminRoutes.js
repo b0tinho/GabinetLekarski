@@ -5,13 +5,14 @@ const User = require("../entities/User");
 const Doctor = require("../entities/Doctor");
 const { requireRole } = require("../middleware/authMiddleware");
 const Patient = require("../entities/Patient");
-
+const Visit = require("../entities/Visit");
 const router = express.Router();
 
 
 const userRepo = AppDataSource.getRepository(User);
 const doctorRepo = AppDataSource.getRepository(Doctor);
 const patientRepo = AppDataSource.getRepository(Patient);
+
 
 // 1. Dodawanie Lekarza
 router.post("/doctors", requireRole("ADMIN"), async (req, res) => {

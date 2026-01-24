@@ -6,11 +6,19 @@ const DoctorDashboard = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('appointments');
     const [appointments, setAppointments] = useState([]);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('role');
         navigate('/login');
+    };
+
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            fetchAppointments(newPage);
+        }
     };
 
     //FORMATOWANIE DATY
@@ -25,10 +33,10 @@ const DoctorDashboard = () => {
     };
 
     //WIZYTY LEKARZA
-    const fetchAppointments = async () => {
+    const fetchAppointments = async (pageNumber = 1) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:3000/visits', {
+            const response = await fetch(`http://localhost:3000/visits?page=${pageNumber}&limit=5`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -37,6 +45,10 @@ const DoctorDashboard = () => {
 
             const data = await response.json();
             setAppointments(data.data || (Array.isArray(data) ? data : [])); 
+            if (data.meta) {
+                setPage(data.meta.page);
+                setTotalPages(data.meta.totalPages);
+            }
         } catch (error) {
             console.error("Błąd pobierania wizyt:", error);
         }
@@ -81,7 +93,7 @@ const DoctorDashboard = () => {
     };
 
     useEffect(() => {
-        fetchAppointments();
+        fetchAppointments(1);
     }, []);
 
     return (
@@ -112,6 +124,7 @@ const DoctorDashboard = () => {
                         <h3>Harmonogram Wizyt</h3>
                         
                         {appointments.length > 0 ? (
+                            <>
                             <table className="data-table">
                                 <thead>
                                     <tr>
@@ -182,6 +195,30 @@ const DoctorDashboard = () => {
                                     ))}
                                 </tbody>
                             </table>
+                            {totalPages > 1 && (
+                                    <div style={{ display: "flex", justifyContent: "center", gap: "15px", marginTop: "20px", alignItems: "center" }}>
+                                        <button 
+                                            className="nav-btn" 
+                                            style={{width:"auto", background: page===1?"#333":"#646cff", cursor: page===1?"not-allowed":"pointer"}} 
+                                            disabled={page===1} 
+                                            onClick={()=>handlePageChange(page-1)}
+                                        >
+                                            Poprzednia
+                                        </button>
+                                        
+                                        <span style={{color:"#ccc"}}>Strona {page} z {totalPages}</span>
+                                        
+                                        <button 
+                                            className="nav-btn" 
+                                            style={{width:"auto", background: page===totalPages?"#333":"#646cff", cursor: page===totalPages?"not-allowed":"pointer"}} 
+                                            disabled={page===totalPages} 
+                                            onClick={()=>handlePageChange(page+1)}
+                                        >
+                                            Następna
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         ) : (
                             <p>Brak zaplanowanych wizyt.</p>
                         )}

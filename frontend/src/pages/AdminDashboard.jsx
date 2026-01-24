@@ -13,12 +13,27 @@ const AdminDashboard = () => {
   const [isAddingDoctor, setIsAddingDoctor] = useState(false);
   const [visits, setVisits] = useState([]);
   const [editingVisit, setEditingVisit] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   //WYLOGOWANIE
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     navigate("/login");
+  };
+  //ZMIANA STRONY PACJENTÓW
+const handlePageChange = (newPage) => {
+      if (newPage >= 1 && newPage <= totalPages) {
+          if (activeTab === "patients") {
+              fetchPatients(newPage);
+          } else if (activeTab === "doctors") {
+              
+              setPage(newPage);
+          } else if (activeTab === "visits") {
+              fetchVisits(newPage); 
+          }
+      }
   };
   //FORMATOWANIE DATY DLA INPUTA
   const formatForInput = (isoDateString) => {
@@ -76,7 +91,29 @@ const AdminDashboard = () => {
     }
   };
   //USUWANIE PACJENTA
- // const handleDeletePatient = asycnc (patientId) => {};
+ const handleDeletePatient = async (patientId) => {
+  if(!window.confirm("Czy na pewno chcesz usunąć tego pacjenta i jego konto?")) {
+    return;
+  }
+  try {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`http://localhost:3000/admin/patients/${patientId}`, {
+      method: "DELETE",
+      headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+      }
+    });
+    if (!response.ok) {
+        throw new Error("Nie udało się usunąć pacjenta");
+    }
+    setPatients(patients.filter((p) => p.id !== patientId));
+    alert("Pacjent został usunięty.");
+  } catch (err) {
+    console.error("Błąd usuwania pacjenta:", err);
+    alert(`Wystąpił błąd podczas usuwania: ${err.message}`);
+  }
+ };
    
   //USUWANIE LEKARZA  
   const handleDeleteDoctor = async (doctorId) => {
@@ -161,11 +198,11 @@ const AdminDashboard = () => {
   };
 
   //POBIERANIE LISTY LEKARZY 
-  const fetchDoctors = async () => {
+  const fetchDoctors = async (pageNumber = 1) => {
     try {
       const token = localStorage.getItem("token");
       
-      const response = await fetch("http://localhost:3000/api/doctors", {
+      const response = await fetch(`http://localhost:3000/api/doctors?page=${pageNumber}&limit=5`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -179,16 +216,20 @@ const AdminDashboard = () => {
 
       const data = await response.json();
       console.log("Pobrani lekarze:", data);
-      setDoctors(data);
+      setDoctors(data.data || []);
+      if (data.meta) {
+          setPage(data.meta.page);
+          setTotalPages(data.meta.totalPages);
+      }
 
     } 
-    finally {
-      
+    catch (error) {
+      console.error("Nie udało się pobrać lekarzy:", error);
     }
   };
 
   //POBIERANIE LISTY PACJENTÓW 
-  const fetchPatients = async () => {
+  const fetchPatients = async (pageNumber = 1) => {
     try {
       const token = localStorage.getItem("token");
       if (!token) 
@@ -197,7 +238,7 @@ const AdminDashboard = () => {
           return; 
         }
 
-      const response = await fetch("http://localhost:3000/admin/patients", {
+      const response = await fetch(`http://localhost:3000/admin/patients?page=${pageNumber}&limit=5`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -208,8 +249,11 @@ const AdminDashboard = () => {
       if (!response.ok) throw new Error(`Błąd: ${response.status}`);
 
       const result = await response.json();
-      console.log("Pobrani pacjenci:", result);
-      setPatients(result.data);
+      setPatients(result.data || []);
+      if (result.meta) {
+          setPage(result.meta.page);
+          setTotalPages(result.meta.totalPages);
+      }
 
     } 
     catch (error) {
@@ -220,14 +264,14 @@ const AdminDashboard = () => {
     }
   };
   //POBIERANEI LISTY WIZYT
-  const fetchVisits = async () => {
+  const fetchVisits = async (pageNumber = 1) => {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
         navigate("/login");
         return;
       }
-      const response = await fetch("http://localhost:3000/visits", {
+      const response = await fetch(`http://localhost:3000/visits?page=${pageNumber}&limit=5`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -238,7 +282,11 @@ const AdminDashboard = () => {
 
       const result = await response.json();
       console.log("Pobrane wizyty:", result);
-      setVisits(result.data);
+      setVisits(result.data || []);
+      if (result.meta) {
+          setPage(result.meta.page);
+          setTotalPages(result.meta.totalPages);
+      }
     } catch (error) {
       console.error("Nie udało się pobrać wizyt:", error);
     }
@@ -246,13 +294,14 @@ const AdminDashboard = () => {
 
  
   useEffect(() => {
+    setPage(1);
     if (activeTab === "patients") {
-      fetchPatients();
+      fetchPatients(1);
     } else if (activeTab === "doctors") {
-      fetchDoctors();
+      fetchDoctors(1);
     }
     else if (activeTab === "visits") {
-      fetchVisits();
+      fetchVisits(1);
     }
   }, [activeTab]);
 
@@ -324,6 +373,7 @@ const AdminDashboard = () => {
             {visits.length === 0 ? (
               <p>Brak wizyt w systemie.</p>
             ) : (
+              <>
               <table className="data-table">
                 <thead>
                   <tr>
@@ -382,6 +432,14 @@ const AdminDashboard = () => {
                   ))}
                 </tbody>
               </table>
+              {totalPages > 1 && (
+                    <div style={{ display: "flex", justifyContent: "center", gap: "15px", marginTop: "20px", alignItems: "center" }}>
+                        <button className="nav-btn" style={{width:"auto", background: page===1?"#333":"#646cff", cursor: page===1?"not-allowed":"pointer"}} disabled={page===1} onClick={()=>handlePageChange(page-1)}>Poprzednia</button>
+                        <span style={{color:"#ccc"}}>Strona {page} z {totalPages}</span>
+                        <button className="nav-btn" style={{width:"auto", background: page===totalPages?"#333":"#646cff", cursor: page===totalPages?"not-allowed":"pointer"}} disabled={page===totalPages} onClick={()=>handlePageChange(page+1)}>Następna</button>
+                    </div>
+                )}
+              </>
             )}
           </div>
         );
@@ -414,6 +472,7 @@ const AdminDashboard = () => {
         {(!patients || !Array.isArray(patients) || patients.length === 0) && !error ? (
           <p>Brak pacjentów lub trwa ładowanie...</p>
         ) : (
+          <>
           <table className="data-table">
             <thead>
               <tr>
@@ -423,6 +482,7 @@ const AdminDashboard = () => {
                 <th>PESEL</th>
                 <th>Telefon</th>
                 <th>Email</th> 
+                <th>Akcje</th>
               </tr>
             </thead>
             <tbody>
@@ -434,10 +494,44 @@ const AdminDashboard = () => {
                   <td>{p.pesel || "-"}</td>
                   <td>{p.phoneNumber || "-"}</td>
                   <td>{p.email || "-"}</td>
+                  <td>
+                        <button 
+                            className="action-btn"
+                            style={{ backgroundColor: "#da3633" }}
+                            onClick={() => handleDeletePatient(p.id)}
+                        >
+                            Usuń
+                        </button>
+                      </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {totalPages > 1 && (
+                    <div style={{ display: "flex", justifyContent: "center", gap: "15px", marginTop: "20px", alignItems: "center" }}>
+                        <button 
+                            className="nav-btn" 
+                            style={{ width: "auto", background: page === 1 ? "#333" : "#646cff", cursor: page === 1 ? "not-allowed" : "pointer" }}
+                            disabled={page === 1}
+                            onClick={() => handlePageChange(page - 1)}
+                        >
+                            Poprzednia
+                        </button>
+                        
+                        <span style={{ color: "#ccc" }}>Strona {page} z {totalPages}</span>
+                        
+                        <button 
+                            className="nav-btn" 
+                            style={{ width: "auto", background: page === totalPages ? "#333" : "#646cff", cursor: page === totalPages ? "not-allowed" : "pointer" }}
+                            disabled={page === totalPages}
+                            onClick={() => handlePageChange(page + 1)}
+                        >
+                            Następna
+                        </button>
+                    </div>
+                )}
+           </>
+                
         )}
       </div>
     );
@@ -477,42 +571,68 @@ const AdminDashboard = () => {
 
             {doctors.length === 0 && !error ? (
               <p>Trwa ładowanie lub brak lekarzy...</p>
-            ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>ID</th><th>Imię</th><th>Nazwisko</th><th>Specjalizacja</th><th>Akcje</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {doctors.map((doctor) => (
-                    <tr key={doctor.id}>
-                      <td>{doctor.id}</td>
-                      <td>{doctor.firstName}</td>
-                      <td>{doctor.lastName}</td>
-                      <td>{doctor.specialization}</td>
-                      <td>
-                        <button
-                          onClick={() => handleDeleteDoctor(doctor.id)}
-                          style={{
-                            backgroundColor: "#ff4d4d",
-                            color: "white",
-                            border: "none",
-                            padding: "5px 10px",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Usuń
-                        </button>
-                      </td>
+            ) : ( 
+            <>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th><th>Imię</th><th>Nazwisko</th><th>Specjalizacja</th><th>Akcje</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {doctors.map((doctor) => (
+                      <tr key={doctor.id}>
+                        <td>{doctor.id}</td>
+                        <td>{doctor.firstName}</td>
+                        <td>{doctor.lastName}</td>
+                        <td>{doctor.specialization}</td>
+                        <td>
+                          <button
+                            onClick={() => handleDeleteDoctor(doctor.id)}
+                            style={{
+                              backgroundColor: "#ff4d4d",
+                              color: "white",
+                              border: "none",
+                              padding: "5px 10px",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Usuń
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                
+                {totalPages > 1 && (
+                    <div style={{ display: "flex", justifyContent: "center", gap: "15px", marginTop: "20px", alignItems: "center" }}>
+                        <button 
+                            className="nav-btn" 
+                            style={{width:"auto", background: page===1?"#333":"#646cff", cursor: page===1?"not-allowed":"pointer"}} 
+                            disabled={page===1} 
+                            onClick={()=>handlePageChange(page-1)}
+                        >
+                            Poprzednia
+                        </button>
+                        
+                        <span style={{color:"#ccc"}}>Strona {page} z {totalPages}</span>
+                        
+                        <button 
+                            className="nav-btn" 
+                            style={{width:"auto", background: page===totalPages?"#333":"#646cff", cursor: page===totalPages?"not-allowed":"pointer"}} 
+                            disabled={page===totalPages} 
+                            onClick={()=>handlePageChange(page+1)}
+                        >
+                            Następna
+                        </button>
+                    </div>
+                )}
+              </> 
             )}
           </div>
-        );
+        )
 
       default:
         return <h2>Wybierz opcję z menu</h2>;
