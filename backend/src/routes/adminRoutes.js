@@ -5,13 +5,14 @@ const User = require("../entities/User");
 const Doctor = require("../entities/Doctor");
 const { requireRole } = require("../middleware/authMiddleware");
 const Patient = require("../entities/Patient");
-
+const Visit = require("../entities/Visit");
 const router = express.Router();
 
 
 const userRepo = AppDataSource.getRepository(User);
 const doctorRepo = AppDataSource.getRepository(Doctor);
 const patientRepo = AppDataSource.getRepository(Patient);
+
 
 // 1. Dodawanie Lekarza
 router.post("/doctors", requireRole("ADMIN"), async (req, res) => {
@@ -67,6 +68,8 @@ router.post("/doctors", requireRole("ADMIN"), async (req, res) => {
 
 // 2. Usuwanie Lekarza
 router.delete("/doctors/:id", requireRole("ADMIN"), async (req, res) => {
+    const { id } = req.params;
+
     try {
         const doctor = await doctorRepo.findOne({ 
             where: { id: req.params.id }, 
@@ -77,11 +80,20 @@ router.delete("/doctors/:id", requireRole("ADMIN"), async (req, res) => {
             return res.status(404).json({ message: "Nie znaleziono lekarza" });
         }
 
-        await userRepo.remove(doctor.user);
+        await AppDataSource.transaction(async (manager) => {
+            await manager.delete(Visit, {doctor: { id: id } });
+
+            await manager.delete(Doctor, { id: id });
+
+            if(doctor.user) {
+                await manager.delete(User, { id: doctor.user.id });
+            }
+        });
         
-        res.json({ message: "Lekarz i jego konto usunięte" });
+        res.json({ message: "Lekarz, jego konto oraz wszystkie przypisane wizyty zostały usunięte." });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error("Błąd usuwania lekarza:", error);
+        res.status(500).json({ message: "Błąd serwera: " + error.message });
     }
 });
 
@@ -121,6 +133,38 @@ router.get("/patients", requireRole("ADMIN"), async (req, res) => {
 
     } catch (error) {
         console.error("Błąd pobierania pacjentów:", error);
+        res.status(500).json({ message: "Błąd serwera." });
+    }
+});
+
+//4. Usuwanie pacjenta
+router.delete("/patients/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const patient = await patientRepo.findOne({
+            where: { id },
+            relations: ["user"]
+        });
+
+        if (!patient) {
+            return res.status(404).json({ message: "Pacjent nie został znaleziony." });
+        }
+
+        await AppDataSource.transaction(async (manager) => {
+            await manager.delete(Visit, { patient: { id: id } });
+
+            await manager.delete(Patient, { id: id });
+
+            if (patient.user) {
+                await manager.delete(User, { id: patient.user.id });
+            }
+        });
+
+        res.json({ message: "Pacjent i jego historia zostali usunięci z systemu." });
+
+    } catch (error) {
+        console.error("Błąd usuwania pacjenta:", error);
         res.status(500).json({ message: "Błąd serwera." });
     }
 });

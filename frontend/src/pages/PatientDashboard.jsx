@@ -7,13 +7,20 @@ const PatientDashboard = () => {
     
     
     const [activeTab, setActiveTab] = useState('appointments'); 
-    
     const [appointments, setAppointments] = useState([]);
     const [doctors, setDoctors] = useState([]);
     const [formData, setFormData] = useState({
         doctorId: "",
         date: ""
     });
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            fetchAppointments(newPage);
+        }
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -27,10 +34,10 @@ const PatientDashboard = () => {
         return now.toISOString().slice(0,16);
     };
 //LISTA WIZYT PACJENTA
-    const fetchAppointments = async () => {
+    const fetchAppointments = async (pageNumber = 1) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:3000/visits', {
+            const response = await fetch(`http://localhost:3000/visits?page=${pageNumber}&limit=5`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -43,6 +50,10 @@ const PatientDashboard = () => {
             const data = await response.json();
             
             setAppointments(data.data || []); 
+            if (data.meta) {
+                setPage(data.meta.page);
+                setTotalPages(data.meta.totalPages);
+            }
         } catch (err) {
             console.error("Błąd pobierania wizyt:", err);
         }
@@ -51,13 +62,20 @@ const PatientDashboard = () => {
     const fetchDoctors = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:3000/api/doctors', {
+            const response = await fetch('http://localhost:3000/api/doctors?limit=1000', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
             const data = await response.json();
-            setDoctors(Array.isArray(data) ? data : data.data || []);
+            let doctorsList = data;
+            if (data.data && Array.isArray(data.data)) {
+                doctorsList = data.data;
+            }
+            else if (Array.isArray(data)) {
+                doctorsList = data;
+            } 
+            setDoctors(doctorsList);
             
         } catch (err) {
             console.error("Błąd pobierania lekarzy:", err);
@@ -126,7 +144,7 @@ const PatientDashboard = () => {
     }
 
     useEffect(() => {
-        fetchAppointments();
+        fetchAppointments(1);
         fetchDoctors();
     }, []);
 
@@ -165,6 +183,7 @@ const PatientDashboard = () => {
                     <div className="table-container">
                         <h3>Twoje wizyty</h3>
                         {appointments.length > 0 ? (
+                            <>
                             <table className="data-table">
                                 <thead>
                                     <tr>
@@ -195,6 +214,30 @@ const PatientDashboard = () => {
                                     ))}
                                 </tbody>
                             </table>
+                            {totalPages > 1 && (
+                                    <div style={{ display: "flex", justifyContent: "center", gap: "15px", marginTop: "20px", alignItems: "center" }}>
+                                        <button 
+                                            className="nav-btn" 
+                                            style={{width:"auto", background: page===1?"#333":"#646cff", cursor: page===1?"not-allowed":"pointer"}} 
+                                            disabled={page===1} 
+                                            onClick={()=>handlePageChange(page-1)}
+                                        >
+                                            Poprzednia
+                                        </button>
+                                        
+                                        <span style={{color:"#ccc"}}>Strona {page} z {totalPages}</span>
+                                        
+                                        <button 
+                                            className="nav-btn" 
+                                            style={{width:"auto", background: page===totalPages?"#333":"#646cff", cursor: page===totalPages?"not-allowed":"pointer"}} 
+                                            disabled={page===totalPages} 
+                                            onClick={()=>handlePageChange(page+1)}
+                                        >
+                                            Następna
+                                        </button>
+                                    </div>
+                                )}
+                                </>
                         ) : (
                             <p>Brak zaplanowanych wizyt.</p>
                         )}

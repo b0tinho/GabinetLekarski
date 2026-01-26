@@ -48,6 +48,8 @@ const Register = () => {
   return (
     <div className="auth-container">
       <div className="auth-box">
+        <h1 className="clinic-title">🚑 MedSystem</h1>
+        <p className="clinic-subtitle">Gabinet Lekarski</p>
         <h2>Rejestracja Pacjenta</h2>
         
         {error && <div className="error-msg">{error}</div>}

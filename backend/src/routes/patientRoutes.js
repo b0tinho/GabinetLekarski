@@ -13,26 +13,43 @@ const doctorRepo = AppDataSource.getRepository(Doctor);
 // 1. Lista Lekarzy (Publiczna - każdy może zobaczyć)
 router.get("/doctors", async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
         const { specialization } = req.query;
         const whereClause = {};
 
-        if(specialization) {
-            whereClause.specialization = ILike('%${specialization}%');
+        if (specialization) {
+            whereClause.specialization = ILike(`%${specialization}%`);
         }
 
-        const doctors = await doctorRepo.find({
+        const [doctors, total] = await doctorRepo.findAndCount({
+            take: limit,
+            skip: skip,
             where: whereClause,
+            relations: ["user"], 
             order: { lastName: "ASC" }
         });
-        
+
         const safeDoctors = doctors.map(d => ({
             id: d.id,
             firstName: d.firstName,
             lastName: d.lastName,
-            specialization: d.specialization
+            specialization: d.specialization, 
+            email: d.user ? d.user.email : null,
         }));
 
-        res.json(safeDoctors);
+        res.json({
+            data: safeDoctors,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+
     }   catch(error) {
         console.error("Blad pobierania lekarzy:", error);
         res.status(500).json({ message: "Blad serwera podczas pobierania listy lekarzy." });
