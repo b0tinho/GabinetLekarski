@@ -62,13 +62,20 @@ const PatientDashboard = () => {
     const fetchDoctors = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:3000/api/doctors', {
+            const response = await fetch('http://localhost:3000/api/doctors?limit=1000', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
             const data = await response.json();
-            setDoctors(Array.isArray(data) ? data : data.data || []);
+            let doctorsList = data;
+            if (data.data && Array.isArray(data.data)) {
+                doctorsList = data.data;
+            }
+            else if (Array.isArray(data)) {
+                doctorsList = data;
+            } 
+            setDoctors(doctorsList);
             
         } catch (err) {
             console.error("Błąd pobierania lekarzy:", err);

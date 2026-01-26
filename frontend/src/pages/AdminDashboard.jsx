@@ -454,7 +454,7 @@ const handlePageChange = (newPage) => {
                             className="action-btn"
                             style={{ backgroundColor: "#646cff", marginRight: "5px" }}
                             onClick={() => {
-                                if(doctors.length === 0) fetchDoctors(1, 1000);
+                                fetchDoctors(1, 1000);
 
                                 setEditingVisit({
                                     id: visit.id,
