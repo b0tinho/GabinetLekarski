@@ -101,8 +101,16 @@ System automatycznie:
 | Pacjent       | pacjent1@test.pl  | Haslo123! |
 
 ### Zrzuty ekranu
+- **Logowanie**
+![Logowanie](https://github.com/b0tinho/GabinetLekarski/blob/1e1c0bf4f2691cd510a620558ba7afda6ff2037f/screenshots/logowanie.jfif)
 
+- **Panel administratora**
+![Panel Admina](https://github.com/b0tinho/GabinetLekarski/blob/1e1c0bf4f2691cd510a620558ba7afda6ff2037f/screenshots/panel_admin.jfif)
 
+- **Panel lekarza**
+![Panel Lekarza](https://github.com/b0tinho/GabinetLekarski/blob/1e1c0bf4f2691cd510a620558ba7afda6ff2037f/screenshots/panel_lekarz.jfif)
+- **Panel pacjenta**
+![Panel Pacjenta](https://github.com/b0tinho/GabinetLekarski/blob/1e1c0bf4f2691cd510a620558ba7afda6ff2037f/screenshots/panel_pacjent.jfif)
 ## 5. Funkcjonalności
 ### Główne funkcje
 - Uwierzytelnianie i autoryzacja: Zabezpieczenie tras middleware’ami authenticateToken i requireRole.
