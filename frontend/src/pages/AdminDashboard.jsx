@@ -15,6 +15,37 @@ const AdminDashboard = () => {
   const [editingVisit, setEditingVisit] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [stats, setStats] = useState({
+    totalPatients: 0,
+    totalDoctors: 0,
+    totalVisits: 0,
+  });
+ //POBIERANIE STATYSTYK
+  const fetchDashboardStats = async () => {
+    try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const [resPat, resDoc, resVis] = await Promise.all([
+            fetch("http://localhost:3000/admin/patients?limit=1", { headers: { "Authorization": `Bearer ${token}` } }),
+            fetch("http://localhost:3000/api/doctors?limit=1", { headers: { "Authorization": `Bearer ${token}` } }), 
+            fetch("http://localhost:3000/visits?limit=1", { headers: { "Authorization": `Bearer ${token}` } })
+        ]);
+
+        const dataPat = await resPat.json();
+        const dataDoc = await resDoc.json();
+        const dataVis = await resVis.json();
+
+       
+        setStats({
+            totalPatients: dataPat.meta ? dataPat.meta.total : 0,
+            totalDoctors: dataDoc.meta ? dataDoc.meta.total : 0,
+            totalVisits: dataVis.meta ? dataVis.meta.total : 0
+        });
+
+    } catch (err) {
+        console.error("Błąd odświeżania statystyk:", err);
+    }
+  };
 
   //WYLOGOWANIE
   const handleLogout = () => {
@@ -198,11 +229,11 @@ const handlePageChange = (newPage) => {
   };
 
   //POBIERANIE LISTY LEKARZY 
-  const fetchDoctors = async (pageNumber = 1) => {
+  const fetchDoctors = async (pageNumber = 1, customLimit = 5) => {
     try {
       const token = localStorage.getItem("token");
       
-      const response = await fetch(`http://localhost:3000/api/doctors?page=${pageNumber}&limit=5`, {
+      const response = await fetch(`http://localhost:3000/api/doctors?page=${pageNumber}&limit=${customLimit}`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -215,13 +246,18 @@ const handlePageChange = (newPage) => {
       }
 
       const data = await response.json();
-      console.log("Pobrani lekarze:", data);
-      setDoctors(data.data || []);
-      if (data.meta) {
-          setPage(data.meta.page);
-          setTotalPages(data.meta.totalPages);
-      }
+      console.log("Pobrani lekarze " + customLimit, data);
 
+      let doctorsData = [];
+      if (data.data && Array.isArray(data.data)) {
+          doctorsData = data.data;
+      if (customLimit === 5 && data.meta) {
+              setPage(data.meta.page);
+              setTotalPages(data.meta.totalPages);
+          }
+        }
+        
+      setDoctors(doctorsData);
     } 
     catch (error) {
       console.error("Nie udało się pobrać lekarzy:", error);
@@ -303,6 +339,17 @@ const handlePageChange = (newPage) => {
     else if (activeTab === "visits") {
       fetchVisits(1);
     }
+
+    let intervalId;
+    if (activeTab === "dashboard") {
+        fetchDashboardStats(); 
+        intervalId = setInterval(() => {
+            fetchDashboardStats();
+        }, 5000);
+    }
+    return () => {
+        if (intervalId) clearInterval(intervalId);
+    };
   }, [activeTab]);
 
   //WIDOKI
@@ -407,7 +454,7 @@ const handlePageChange = (newPage) => {
                             className="action-btn"
                             style={{ backgroundColor: "#646cff", marginRight: "5px" }}
                             onClick={() => {
-                                if(doctors.length === 0) fetchDoctors();
+                                if(doctors.length === 0) fetchDoctors(1, 1000);
 
                                 setEditingVisit({
                                     id: visit.id,
@@ -448,15 +495,15 @@ const handlePageChange = (newPage) => {
           <div className="stats-grid">
             <div className="stat-card">
               <h3>Zarejestrowani Pacjenci</h3>
-              <p className="stat-number">{patients.length > 0 ? patients.length : "-"}</p>
+              <p className="stat-number">{stats.totalPatients}</p>
             </div>
             <div className="stat-card">
               <h3>Dostępni Lekarze</h3>
-              <p className="stat-number">{doctors.length > 0 ? doctors.length : "-"}</p>
+              <p className="stat-number">{stats.totalDoctors}</p>
             </div>
             <div className="stat-card">
               <h3>Wszystkie wizyty</h3>
-              <p className="stat-number">{visits.length > 0 ? visits.length : "-"}</p>
+              <p className="stat-number">{stats.totalVisits}</p>
             </div>
           </div>
         );
